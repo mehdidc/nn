@@ -81,7 +81,24 @@ class OutputLayerMSE(object):
         return np.sum((outputs - expected_outputs)**2)
     
     def get_output_d(self, outputs, expected_outputs):
-            return 2. * (outputs - expected_outputs)
+        return 2. * (outputs - expected_outputs)
+
+
+class OutputLayerMI(object):
+    
+    def forward(self, x):
+        return x
+    
+    def backward(self, x, dx):
+        return dx
+    
+    def get_loss(self, outputs, expected_outputs):
+        return -np.sum(np.log(outputs) * expected_outputs + np.log(1 - outputs) * (1 - expected_outputs))
+    
+    def get_output_d(self, outputs, expected_outputs):
+        return (-(expected_outputs / outputs) + (1 - expected_outputs) / (1 - outputs))
+
+
 
 class OutputLayerNLL(object):
     

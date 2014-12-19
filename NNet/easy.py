@@ -24,6 +24,17 @@ class EnsembleModel(object):
         outputs = [model.predict(x) for model in self.models]
         return np.mean(outputs, axis=0)
 
+class StackModel(object):
+
+    def __init__(self, models):
+        self.models = models
+
+    def predict(self, x):
+        for model in self.models:
+            x = self.predict(x)
+        return x
+
+
 def get_best_model(models_evaluations):
     m, _ = max(models_evaluations, key=lambda (m, e):e)
     return m

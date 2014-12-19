@@ -7,9 +7,13 @@ class NN(object):
         self.layers = layers
 
     def forward(self, x):
-        for layer in self.layers:
+        return self.forward_until(x, len(self.layers))
+
+    def forward_until(self, x, layer):
+        for layer in self.layers[0:layer]:
             x = layer.forward(x)
         return x
+
     
     def forward_get_all_outputs(self, x):
         outputs = []
