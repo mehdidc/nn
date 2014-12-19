@@ -2,6 +2,8 @@ import numpy as np
 import re
 
 def cifar_example(nb=1, nb_features=4096):
+    nb=int(nb)
+    nb_features=int(nb_features)
     if nb==7:
         per_batch = 10000
         all_data = np.zeros(   (per_batch * 6, nb_features) )
@@ -43,7 +45,7 @@ def sin_example():
     return x, y
 
 def breast_example():
-    dataset = np.loadtxt("breast.txt", delimiter=",")
+    dataset = np.loadtxt("data/breast.txt", delimiter=",")
     x, y = dataset[:, 0:-1], dataset[:, -1]
     y = np.array([[yi] for yi in y])
     return x, y

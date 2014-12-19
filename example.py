@@ -1,13 +1,15 @@
 import numpy as np
-from layer import FullLayer, BiasLayer, ApplyFunctionLayer, OutputLayerMSE, ScaleLayer, SineLayer, SoftmaxLayer, OutputLayerNLL, ProjectionLayer
-from nn import NN
-from preprocess import preprocess, min_max_scaler, mean_std_scaler
-from funcs import *
-from learner import Learner
-from utils import shuffle, divide, to_hamming, from_hamming, get_classes
-from easy import EnsembleModel
-from errors import confusion_matrix, classification_error
-import rnd_gen
+
+
+from NNet.layer import FullLayer, BiasLayer, ApplyFunctionLayer, OutputLayerMSE, ScaleLayer, SineLayer, SoftmaxLayer, OutputLayerNLL, ProjectionLayer
+from NNet.nn import NN
+from NNet.preprocess import preprocess, min_max_scaler, mean_std_scaler
+from NNet.funcs import *
+from NNet.learner import Learner
+from NNet.utils import shuffle, divide, to_hamming, from_hamming, get_classes
+from NNet.easy import EnsembleModel
+from NNet.errors import confusion_matrix, classification_error
+from NNet import rnd_gen
 
 import re
 from hyperopt import hp, fmin, tpe, STATUS_OK, Trials
@@ -490,7 +492,7 @@ import datasets
 import sys
 
 def run(argv):
-    examples = getattr(datasets,argv[1])(*map(int, argv[2:]))
+    examples = getattr(datasets,argv[1])(*argv[2:])
     import time
     begin = time.time()
     id = md5.new( str(time.time()) ).hexdigest()
