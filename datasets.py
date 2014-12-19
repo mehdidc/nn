@@ -2,19 +2,17 @@ import numpy as np
 import re
 
 def cifar_example(nb=1, nb_features=4096):
-    nb=int(nb)
-    nb_features=int(nb_features)
     if nb==7:
         per_batch = 10000
         all_data = np.zeros(   (per_batch * 6, nb_features) )
         all_labels = np.zeros(  (per_batch * 6, 1) )
         for n in (1, 2, 3, 4, 5, 6):
-            data, labels = np.load("data/cifar%d_%d.npy" % (n, nb_features))
+            data, labels = np.load("data/cifar/cifar%d_%d.npy" % (n, nb_features))
             all_data[(n - 1) * per_batch: n * per_batch] = np.array(list(data))
             all_labels[(n - 1) * per_batch : n * per_batch] = np.array([[l] for l in labels])
         return all_data, all_labels
     else:
-        data, labels = np.load("data/cifar%d_%d.npy" % (nb, nb_features))
+        data, labels = np.load("data/cifar/cifar%d_%d.npy" % (nb, nb_features))
         data = np.array(list(data))
         labels = np.array([[l] for l in labels])
         data = data[0:200]
@@ -45,7 +43,7 @@ def sin_example():
     return x, y
 
 def breast_example():
-    dataset = np.loadtxt("data/breast.txt", delimiter=",")
+    dataset = np.loadtxt("breast.txt", delimiter=",")
     x, y = dataset[:, 0:-1], dataset[:, -1]
     y = np.array([[yi] for yi in y])
     return x, y

@@ -20,8 +20,8 @@ class EnsembleModel(object):
     def __init__(self, models):
         self.models = models
 
-    def forward(self, x):
-        outputs = [model.forward(x) for model in self.models]
+    def predict(self, x):
+        outputs = [model.predict(x) for model in self.models]
         return np.mean(outputs, axis=0)
 
 def get_best_model(models_evaluations):

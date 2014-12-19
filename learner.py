@@ -4,7 +4,7 @@ import numpy as np
 momentum, adadelta = range(2)
 class Learner(object):
     
-    def __init__(self, nn, alpha=0.01, momentum=0.9, lambda_=1, eta=1, rho=0.95, eps=0.00001, method=adadelta):
+    def __init__(self, nn, alpha=0.01, momentum=0.9, lambda_=1, eta=1, rho=0.95, eps=0.00001, method=adadelta, dropout=None):
         self.nn = nn
         self.rho = rho
         self.eps = eps
@@ -15,8 +15,20 @@ class Learner(object):
         self.velocity = [0] * len(self.nn.layers)
         self.dx_squared = [0] * len(self.nn.layers)
         self.g_squared = [0] * len(self.nn.layers)
+        self.dropout = dropout
 
         self.method = method
+    
+    def predict(self, x):
+        if self.dropout is None:
+            return self.nn.forward(x)
+        else:
+            for i, layer in enumerate(self.nn.layers):
+                x *= (1-self.dropout[i])
+                x = layer.forward(x)
+            x *= (1-self.dropout[-1])
+            return x
+
 
     def stochastic_gradient_descent(self, x, y, batch_size, it=0):
         #alpha = self.alpha
@@ -28,6 +40,10 @@ class Learner(object):
 
         for x_, y_ in get_batches(x, y, batch_size):
             o = self.nn.forward_get_all_outputs(x_)
+            if self.dropout is not None:
+                for i, p in enumerate(self.dropout[1:]):
+                    o[i] = o[i] * (1-(np.random.uniform(size=o[i].shape) <= p))
+
             dweights = self.nn.get_dweights(x_, o, y_)
             #dweights_ = self.nn.estimate_dweights(x_, y_)
             #max_error = max( np.max( np.abs(a-b)/ (np.abs(b)+(b==0))  ) for a, b in zip(dweights, dweights_) if a is not None and b is not None )

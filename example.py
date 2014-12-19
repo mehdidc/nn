@@ -1,15 +1,13 @@
 import numpy as np
-
-
-from NNet.layer import FullLayer, BiasLayer, ApplyFunctionLayer, OutputLayerMSE, ScaleLayer, SineLayer, SoftmaxLayer, OutputLayerNLL, ProjectionLayer
-from NNet.nn import NN
-from NNet.preprocess import preprocess, min_max_scaler, mean_std_scaler
-from NNet.funcs import *
-from NNet.learner import Learner
-from NNet.utils import shuffle, divide, to_hamming, from_hamming, get_classes
-from NNet.easy import EnsembleModel
-from NNet.errors import confusion_matrix, classification_error
-from NNet import rnd_gen
+from layer import FullLayer, BiasLayer, ApplyFunctionLayer, OutputLayerMSE, ScaleLayer, SineLayer, SoftmaxLayer, OutputLayerNLL, ProjectionLayer
+from nn import NN
+from preprocess import preprocess, min_max_scaler, mean_std_scaler
+from funcs import *
+from learner import Learner
+from utils import shuffle, divide, to_hamming, from_hamming, get_classes
+from easy import EnsembleModel
+from errors import confusion_matrix, classification_error
+import rnd_gen
 
 import re
 from hyperopt import hp, fmin, tpe, STATUS_OK, Trials
@@ -18,7 +16,7 @@ from hyperopt.pyll.stochastic import sample
 
 from collections import defaultdict
 
-normal_ratios = [0.8, 0.2]
+normal_ratios = [0.6, 0.4]
 cross_validation_ratios = [0.8, 0.1, 0.1]
 bootstrap_ratios = [0.8, 0.2]
 presence, absence = 1, -1
@@ -30,12 +28,13 @@ funcs = {
         "id" : (lambda x:x, lambda x:np.ones(x.shape)),
 }
 config = {
-    "hidden" : [30, 5],
-    "activations": ["relu", "relu", "tanh"],
+    "hidden" : [100, 1000],
+    "activations": ["relu", "id", "tanh"],
     "rnd" : rnd_gen.np_normal,
-    "nb_iter": 800,
+    "nb_iter": 1000,
     "alpha":0.08,
-    "momentum": 0.5
+    "momentum": 0.5,
+    "dropout":[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 }
 
 import json
@@ -98,7 +97,6 @@ def build_layers(x_size, y_size, config):
     layers.append( OutputLayerMSE() )
     #layers.append(  SoftmaxLayer() )
     #layers.append(  OutputLayerNLL())
-
     return layers
 
 def gen_each_iter_classification_error(label, x, y, classes):
@@ -106,7 +104,7 @@ def gen_each_iter_classification_error(label, x, y, classes):
 
     y = np.array(from_hamming(y, classes))
     def f(learner):
-        pred_y =  np.array(from_hamming( learner.nn.forward(x), classes ))
+        pred_y =  np.array(from_hamming( learner.predict(x), classes ))
         return (label, classification_error( pred_y, y ) )
  
     return f
@@ -116,7 +114,7 @@ def gen_each_iter_confusion_matrix(label, x, y, classes):
 
     y = np.array(from_hamming(y, classes))
     def f(learner):
-        pred_y =  np.array(from_hamming( learner.nn.forward(x), classes ))
+        pred_y =  np.array(from_hamming( learner.predict(x), classes ))
         return (label, confusion_matrix( pred_y, y, classes) )
  
     return f
@@ -133,7 +131,7 @@ def gen_each_iter_get_loss(label, x, y):
 def gen_each_iter_regression_error(label, x, y):
 
     def f(learner):
-        return (label, np.mean( np.abs ((learner.nn.forward(x)-y) / (y + (y==0) )) )  )
+        return (label, np.mean( np.abs ((learner.predict(x)-y) / (y + (y==0) )) )  )
  
     return f
 
@@ -151,7 +149,7 @@ def build_model(x, y, config, build_layers=build_layers, each_iter=None):
     eta = config.get("eta", 0)
 
     nn = NN(layers)
-    learner = Learner(nn, alpha=alpha, momentum=momentum, lambda_=lambda_, eta=eta)
+    learner = Learner(nn, alpha=alpha, momentum=momentum, lambda_=lambda_, eta=eta, dropout=config.get("dropout", None))
     batch_size = config.get("batch_size", x.shape[0])
     nb_iter = config.get("nb_iter", 1000)
     report_loss_each = config.get("report_loss_each", 10)
@@ -170,7 +168,7 @@ def build_model(x, y, config, build_layers=build_layers, each_iter=None):
             for k, v in datum.items():
                 print k + ":"
                 print v
-    return nn, data
+    return learner, data
 
 
 
@@ -183,8 +181,8 @@ def gen_hp_optimize(x, y,  loss_getter=lambda data:0, *args, **kwargs):
         x_ = x
         y_ = y
 
-        nn, data = build_model(x_, y_, config, *args, **kwargs)
-        return {"loss": loss_getter(data[-1]), "config": config, "data": data, "nn": nn}
+        learner, data = build_model(x_, y_, config, *args, **kwargs)
+        return {"loss": loss_getter(data[-1]), "config": config, "data": data, "model": learner}
     
     return f
 
@@ -197,8 +195,8 @@ def ensemble_model_cv(x, y, nb_models, *args, **kwargs):
     models = []
     models_data = []
     for x_, y_ in divs:
-        nn, data = build_model(x_, y_, *args, **kwargs)
-        models.append(nn)
+        learner, data = build_model(x_, y_, *args, **kwargs)
+        models.append(learner)
         models_data.append(data)
     ensemble = EnsembleModel(models)
     return ensemble, models_data
@@ -207,8 +205,8 @@ def ensemble_model(nb_models, *args, **kwargs):
     models = []
     models_data = []
     for i in xrange(nb_models):
-        nn, data = build_model(*args, **kwargs)
-        models.append(nn)
+        learner, data = build_model(*args, **kwargs)
+        models.append(learner)
         models_data.append(data)
     ensemble = EnsembleModel(models)
     return ensemble, models_data
@@ -234,7 +232,7 @@ class Problem(object):
         if self.mode == cross_validation:
             d.update( {"trials": self.trials} )
         elif self.mode == normal:
-            d.update( {"nn_": self.nn_, "data_" : self.data_, "config":self.config_} )
+            d.update( {"model": self.model, "data_" : self.data_, "config":self.config_} )
         elif self.mode == bootstrap:
             d.update( {"nnlist": self.nnlist, "datalist": self.datalist, "configlist":self.configlist} )
         return d
@@ -272,7 +270,7 @@ class Problem(object):
             cfg = sample(self.config)
             self.config_ = cfg
             res = learn(cfg)
-            self.nn_, self.data_ = res["nn"], res["data"]
+            self.model, self.data_ = res["model"], res["data"]
 
         elif self.mode == bootstrap:
             N = 10
@@ -292,8 +290,8 @@ class Problem(object):
                 cfg = sample(self.config)
                 self.configlist.append(cfg)
                 res = learn(cfg)
-                nn, data = res["nn"], res["data"]
-                self.nnlist.append(nn)
+                model, data = res["model"], res["data"]
+                self.nnlist.append(mode)
                 self.datalist.append(data)
             self.bootstrap_ensemble = EnsembleModel(self.nnlist)
     
@@ -311,22 +309,22 @@ class Problem(object):
                 print "Best caracs " + k+":"
                 print v
             print
-            models = [   trial["result"]["nn"]  for trial in self.trials.trials]
+            models = [   trial["result"]["model"]  for trial in self.trials.trials]
             ensemble  = EnsembleModel(models)
             print "Results ON TEST......"
 
             print "Ensemble:"
-            self.show_result(ensemble.forward(self.test_x), self.test_y)
+            self.show_result(ensemble.predict(self.test_x), self.test_y)
             print "Best one"
-            nn = best_result["nn"]
+            model = best_result["model"]
             
 
-            self.show_result(nn.forward(self.test_x), self.test_y) 
+            self.show_result(model.forward(self.test_x), self.test_y) 
         elif self.mode == normal:
             print "train results:"
-            self.show_result(self.nn_.forward(self.train_x), self.train_y)
+            self.show_result(self.model.predict(self.train_x), self.train_y)
             print "test results:"
-            self.show_result(self.nn_.forward(self.test_x), self.test_y)
+            self.show_result(self.model.predict(self.test_x), self.test_y)
        
         elif self.mode == bootstrap:
 
@@ -338,7 +336,7 @@ class Problem(object):
                 print "Std : %f" % (np.std(errors),)
 
             print "using ensemble : "
-            self.show_result(self.bootstrap_ensemble.forward(self.test_x), self.test_y)
+            self.show_result(self.bootstrap_ensemble.predict(self.test_x), self.test_y)
 
 
 class ClassificationProblem(Problem):
@@ -492,7 +490,7 @@ import datasets
 import sys
 
 def run(argv):
-    examples = getattr(datasets,argv[1])(*argv[2:])
+    examples = getattr(datasets,argv[1])(*map(int, argv[2:]))
     import time
     begin = time.time()
     id = md5.new( str(time.time()) ).hexdigest()
