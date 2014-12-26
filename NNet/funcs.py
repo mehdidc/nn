@@ -19,6 +19,14 @@ def d_sigmoid(x):
     return sigmoid(x)*(1 - sigmoid(x))
 
 
+def gauss(x):
+    return np.exp(-(x**2)*0.5)
+
+
+def d_gauss(x):
+    return x * np.exp(-(x**2)*0.5)
+
+
 def sin(x):
     return np.sin(x)
 

@@ -1,5 +1,8 @@
 import numpy as np
 
+def glorot(state, size=(1,)):
+    b = np.sqrt( 6. / np.sum(size) ) 
+    return state.uniform(-b, b, size=size)
 
 def uniform(state, size=(1,)):
     return state.uniform(-2. / np.prod(size), 2. / np.prod(size), size=size)
@@ -20,3 +23,4 @@ def gen_func(state, orig_func):
 
 np_normal = gen_func(np.random, normal)
 np_uniform = gen_func(np.random, uniform)
+np_glorot = gen_func(np.random, glorot)

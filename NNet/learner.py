@@ -1,7 +1,7 @@
 from utils import get_batches, evolving_rate
 import numpy as np
 
-momentum, adadelta = range(2)
+momentum, adadelta, nag = range(3)
 class Learner(object):
     
     def __init__(self, nn, alpha=0.01, momentum=0.9, lambda_=1, eta=1, rho=0.95, eps=0.00001, method=adadelta, dropout=None):
