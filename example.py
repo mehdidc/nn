@@ -1,13 +1,13 @@
 import numpy as np
-from layer import FullLayer, BiasLayer, ApplyFunctionLayer, OutputLayerMSE, ScaleLayer, SineLayer, SoftmaxLayer, OutputLayerNLL, ProjectionLayer
-from nn import NN
-from preprocess import preprocess, min_max_scaler, mean_std_scaler
-from funcs import *
-from learner import Learner
-from utils import shuffle, divide, to_hamming, from_hamming, get_classes
-from easy import EnsembleModel
-from errors import confusion_matrix, classification_error
-import rnd_gen
+from NNet.layer import FullLayer, BiasLayer, ApplyFunctionLayer, OutputLayerMSE, ScaleLayer, SineLayer, SoftmaxLayer, OutputLayerNLL, ProjectionLayer
+from NNet.nn import NN
+from NNet.preprocess import preprocess, min_max_scaler, mean_std_scaler
+from NNet.funcs import *
+from NNet.learner import Learner
+from NNet.utils import shuffle, divide, to_hamming, from_hamming, get_classes
+from NNet.easy import EnsembleModel
+from NNet.errors import confusion_matrix, classification_error
+import NNet.rnd_gen as rnd_gen
 
 import re
 from hyperopt import hp, fmin, tpe, STATUS_OK, Trials
@@ -16,7 +16,7 @@ from hyperopt.pyll.stochastic import sample
 
 from collections import defaultdict
 
-normal_ratios = [0.6, 0.4]
+normal_ratios = [0.8, 0.2]
 cross_validation_ratios = [0.8, 0.1, 0.1]
 bootstrap_ratios = [0.8, 0.2]
 presence, absence = 1, -1
@@ -28,44 +28,15 @@ funcs = {
         "id" : (lambda x:x, lambda x:np.ones(x.shape)),
 }
 config = {
-    "hidden" : [100, 1000],
-    "activations": ["relu", "id", "tanh"],
+    "hidden" : [800],
+    "activations": ["relu", "tanh"],
     "rnd" : rnd_gen.np_normal,
-    "nb_iter": 1000,
-    "alpha":0.08,
+    "nb_iter": 100,
+    "alpha":0.01,
     "momentum": 0.5,
-    "dropout":[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+#    "dropout":[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 }
 
-import json
-def gen_spearmint_config(config):
-
-    cfg = {}
-
-    vars = {}
-    for k, v in config.items():
-        if type(v) == list:
-            if type(v[0])==int:
-                t="int"
-                min=0
-                max=20
-            elif type(v[0])==float:
-                t="float"
-                min=0
-                max=1
-            size = len(v)
-        elif type(v) == float:
-            t="float"
-            size=1
-            min=0
-            max=1
-        elif type(v)==int:
-            t="int"
-            size=1
-            min=0
-            max=50
-        t=t.upper()
-        vars[k] = {"type":t,"size":size,"min":min,"max":max}
 
 
 from itertools import repeat, chain
@@ -74,14 +45,14 @@ def build_layers(x_size, y_size, config):
     hidden = config.get("hidden")
     activations = config.get("activations")
     rnd_gen = config.get("rnd")
-    
+
     if not isinstance(hidden, collections.Iterable):
         hidden = [hidden]
     if not isinstance(activations, collections.Iterable):
         activations = repeat(activations)
     if not isinstance(rnd_gen, collections.Iterable):
         rnd_gen = repeat(rnd_gen)
-    
+
 
     layers = []
     i_size = x_size
@@ -93,7 +64,7 @@ def build_layers(x_size, y_size, config):
         layers.append( ApplyFunctionLayer(f, d_f) )
 
         i_size = o_size
-    
+
     layers.append( OutputLayerMSE() )
     #layers.append(  SoftmaxLayer() )
     #layers.append(  OutputLayerNLL())
@@ -106,7 +77,7 @@ def gen_each_iter_classification_error(label, x, y, classes):
     def f(learner):
         pred_y =  np.array(from_hamming( learner.predict(x), classes ))
         return (label, classification_error( pred_y, y ) )
- 
+
     return f
 
 
@@ -116,23 +87,23 @@ def gen_each_iter_confusion_matrix(label, x, y, classes):
     def f(learner):
         pred_y =  np.array(from_hamming( learner.predict(x), classes ))
         return (label, confusion_matrix( pred_y, y, classes) )
- 
+
     return f
 
 
 
 def gen_each_iter_get_loss(label, x, y):
-    
+
     def f(learner):
         return label, learner.get_loss(x, y)
-    
+
     return f
 
 def gen_each_iter_regression_error(label, x, y):
 
     def f(learner):
         return (label, np.mean( np.abs ((learner.predict(x)-y) / (y + (y==0) )) )  )
- 
+
     return f
 
 
@@ -154,11 +125,11 @@ def build_model(x, y, config, build_layers=build_layers, each_iter=None):
     nb_iter = config.get("nb_iter", 1000)
     report_loss_each = config.get("report_loss_each", 10)
     report_data_each = config.get("report_data_each", 50)
-    
+
     data = []
     for i in xrange(nb_iter):
         learner.stochastic_gradient_descent(x, y, batch_size, it=i)
-        datum = dict(fct(learner) for fct in each_iter) 
+        datum = dict(fct(learner) for fct in each_iter)
         data.append( datum )
 
         if i % report_loss_each == 0:
@@ -183,14 +154,14 @@ def gen_hp_optimize(x, y,  loss_getter=lambda data:0, *args, **kwargs):
 
         learner, data = build_model(x_, y_, config, *args, **kwargs)
         return {"loss": loss_getter(data[-1]), "config": config, "data": data, "model": learner}
-    
+
     return f
 
 def ensemble_model_cv(x, y, nb_models, *args, **kwargs):
     rt = 1. / nb_models
     rt_last = 1. - rt * (nb_models - 1)
     ratios = [rt] * (nb_models - 1) + [rt_last]
-    
+
     divs = divide(x, y, ratios)
     models = []
     models_data = []
@@ -215,7 +186,7 @@ import itertools
 def ravel(l):
     return list(itertools.chain.from_iterable(l))
 
-normal, cross_validation, bootstrap = range(3) 
+normal, cross_validation, bootstrap = range(3)
 class Problem(object):
 
     def __init__(self, example, mode=normal,id=""):
@@ -253,19 +224,19 @@ class Problem(object):
 
         self.config = config
         self.validation_criterion = "loss"
- 
+
     def learn(self):
 
         if self.mode == cross_validation:
             space = self.config
             trials = Trials()
-            
-            fmin(fn=gen_hp_optimize(self.train_x, self.train_y, 
-                                    lambda data:data[self.validation_criterion], each_iter=self.each_iter), 
+
+            fmin(fn=gen_hp_optimize(self.train_x, self.train_y,
+                                    lambda data:data[self.validation_criterion], each_iter=self.each_iter),
                                     space=space, algo=tpe.suggest, max_evals=max_evals_cv, trials=trials)
             self.trials = trials
         elif self.mode == normal:
-            learn = gen_hp_optimize(self.train_x, self.train_y, 
+            learn = gen_hp_optimize(self.train_x, self.train_y,
                                 lambda data:data[self.validation_criterion], each_iter=self.each_iter)
             cfg = sample(self.config)
             self.config_ = cfg
@@ -283,9 +254,9 @@ class Problem(object):
                 train_x = np.array(ravel([x_ for x_, y_ in parts_train]))
                 train_y = np.array(ravel([y_ for x_, y_ in parts_train]))
                 test_x, test_y = part_test
-                
+
                 each_iter = self.get_each_iter(train_x, train_y, test_x, test_y)
-                learn = gen_hp_optimize(train_x, train_y, 
+                learn = gen_hp_optimize(train_x, train_y,
                                         lambda data:data[self.validation_criterion], each_iter=each_iter)
                 cfg = sample(self.config)
                 self.configlist.append(cfg)
@@ -294,7 +265,7 @@ class Problem(object):
                 self.nnlist.append(mode)
                 self.datalist.append(data)
             self.bootstrap_ensemble = EnsembleModel(self.nnlist)
-    
+
     def show_result(self, raw_pred_y, y):
         pass
 
@@ -317,15 +288,15 @@ class Problem(object):
             self.show_result(ensemble.predict(self.test_x), self.test_y)
             print "Best one"
             model = best_result["model"]
-            
 
-            self.show_result(model.forward(self.test_x), self.test_y) 
+
+            self.show_result(model.forward(self.test_x), self.test_y)
         elif self.mode == normal:
             print "train results:"
             self.show_result(self.model.predict(self.train_x), self.train_y)
             print "test results:"
             self.show_result(self.model.predict(self.test_x), self.test_y)
-       
+
         elif self.mode == bootstrap:
 
             for l in ("train", "test"):
@@ -354,8 +325,8 @@ class ClassificationProblem(Problem):
         self.classes = get_classes(self.y[:, 0])
         self.y = to_hamming(self.y[:, 0], presence=presence, absence=absence)
         super(ClassificationProblem, self).pre()
-        
-        
+
+
         if self.mode == cross_validation:
             tx, ty = self.valid_x, self.valid_y
         elif self.mode == normal:
@@ -364,7 +335,7 @@ class ClassificationProblem(Problem):
         if self.mode in (cross_validation, normal):
             self.each_iter = self.get_each_iter(self.train_x, self.train_y, tx, ty)
             self.validation_criterion = "test"
-    
+
     def show_result(self, raw_pred_y, y):
         pred_y =  from_hamming( raw_pred_y, self.classes )
         y = from_hamming(y, self.classes)
@@ -395,7 +366,7 @@ class ClassificationProblem(Problem):
             plt.ylabel("test")
             plt.scatter(train, test)
             plt.savefig('img/classification-cv-%s.png' % (self.id,))
- 
+
 
 
 class RegressionProblem(Problem):
@@ -413,7 +384,7 @@ class RegressionProblem(Problem):
         self.y = preprocess(self.y, preprocessing_funcs)
 
         super(RegressionProblem, self).pre()
-        
+
         if self.mode == cross_validation:
             tx, ty = self.valid_x, self.valid_y
         elif self.mode == normal:
@@ -449,7 +420,7 @@ class RegressionProblem(Problem):
             plt.ylabel("test")
             plt.scatter(train, test)
             plt.savefig('img/regression-cv-%s.png' % (self.id,))
- 
+
 
 import matplotlib as mpl
 mpl.use('Agg')
@@ -480,17 +451,17 @@ def cifar():
         model = model_data.nn_
         models.append(model)
     ens_model = EnsembleModel(models)
-    
+
     cifar_data = cifar_example(6) # 6 = test data
     x, y = cifar_data
     print classification_error(np.argmax(ens_model.forward(x), axis=1), y[:, 0])
     sys.exit(0)
-    
+
 import datasets
 import sys
 
 def run(argv):
-    examples = getattr(datasets,argv[1])(*map(int, argv[2:]))
+    examples = getattr(datasets,argv[1])(*argv[2:])
     import time
     begin = time.time()
     id = md5.new( str(time.time()) ).hexdigest()
@@ -502,7 +473,7 @@ def run(argv):
     problem.plot()
     print
     print
-    print id 
+    print id
     pickle.dump(problem, open("res/problem-%s.data" % (id,), "w"))
     print "It took %f sec" % (time.time() - begin,)
 if __name__ == "__main__":

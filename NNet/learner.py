@@ -3,7 +3,7 @@ import numpy as np
 
 momentum, adadelta, nag = range(3)
 class Learner(object):
-    
+
     def __init__(self, nn, alpha=0.01, momentum=0.9, lambda_=1, eta=1, rho=0.95, eps=0.00001, method=adadelta, dropout=None):
         self.nn = nn
         self.rho = rho
@@ -18,7 +18,7 @@ class Learner(object):
         self.dropout = dropout
 
         self.method = method
-    
+
     def predict(self, x):
         if self.dropout is None:
             return self.nn.forward(x)
@@ -33,7 +33,7 @@ class Learner(object):
     def stochastic_gradient_descent(self, x, y, batch_size, it=0):
         #alpha = self.alpha
         #momentum = self.momentum
-       
+
         alpha = evolving_rate(self.alpha, self.eta, it)
         momentum = evolving_rate(self.momentum, self.eta, it)
         lambda_ = self.lambda_

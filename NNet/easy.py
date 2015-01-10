@@ -5,18 +5,18 @@ def cross_validation(model_builder, model_evaluator, x, y, ratios, nb_batches):
 
     nb_examples = x.shape[0]
     batch_size = nb_examples / nb_batches
-    
+
     evals = []
     models = []
     for x_, y_ in get_batches(train_x, train_y, batch_size):
         nn = model_builder(x_, y_)
-        evaluation = model_evaluator(nn, valid_x, valid_y) 
+        evaluation = model_evaluator(nn, valid_x, valid_y)
         models_evaluations.append( (nn, evaluation) )
     return models_evaluations
 
 
 class EnsembleModel(object):
-    
+
     def __init__(self, models):
         self.models = models
 

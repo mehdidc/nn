@@ -3,10 +3,10 @@ import copy
 
 
 class Stats(object):
-    
+
     def __init__(self):
         self.data = defaultdict(list)
-    
+
     def subjects(self):
         return self.data.keys()
 
@@ -44,7 +44,7 @@ def from_hamming(targets, classes):
     return np.array(map( lambda x:classes[x], np.argmax(targets, axis=1) ))
 
 def divide(x, y, ratios):
-    
+
     datasets = []
 
     nb_examples = x.shape[0]
@@ -62,7 +62,7 @@ def get_batches(x, y, batch_size):
         nb_chunks = nb_examples / batch_size
         if nb_examples % batch_size > 0:
             nb_chunks += 1
-        
+
         first = 0
         for i in xrange(nb_chunks):
             last = min(first + batch_size, nb_examples)
