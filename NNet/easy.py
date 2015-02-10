@@ -1,5 +1,13 @@
 from utils import get_batches
 import numpy as np
+
+def build_layers(layers_classes, hidden, optional_args):
+    layers = []
+    for vis, hid in zip(hidden[0:-1], hidden[1:]):
+        for layer_cls in layers_classes:
+            layers.append(layer_cls(vis, hid, **optional_args))
+    return layers
+
 def cross_validation(model_builder, model_evaluator, x, y, ratios, nb_batches):
     (train_x, train_y), (valid_x, valid_y) = divide(x, y, ratios)
 

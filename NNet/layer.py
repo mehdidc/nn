@@ -59,7 +59,7 @@ class BiasLayer(object):
 class ScaleLayer(object):
     regularizable = False
     inplace = True
-    def __init__(self, nb_input):
+    def __init__(self, nb_input, rnd_gen=def_rnd_gen_bias):
         self.W = np.ones(  (nb_input, 1) )
 
     def forward(self, x):
